@@ -6,6 +6,8 @@ import warnings
 
 from . import wrapper
 
+Poll = wrapper.Poll
+
 try:
     buffer
 except NameError:
