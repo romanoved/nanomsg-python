@@ -490,14 +490,14 @@ Poll_new(PyTypeObject *type, PyObject * args, PyObject * kwds) {
 }
 
 static PyObject *
-Poll_generic_register(Poll* self, PyObject* args, int allow_missed)
+Poll_register(Poll* self, PyObject* args)
 {
     int fd, fd_ndx;
     short events = NN_POLLIN | NN_POLLOUT;
     PyObject* py_fd;
     PyObject* py_fd_ndx;
 
-    if (!PyArg_ParseTuple(args, "i|H:register/modify", &fd, &events))
+    if (!PyArg_ParseTuple(args, "i|H:register", &fd, &events))
         return NULL;
 
     py_fd = PyTuple_GET_ITEM(args, 0);
@@ -505,11 +505,6 @@ Poll_generic_register(Poll* self, PyObject* args, int allow_missed)
         return NULL;
 
     py_fd_ndx = PyDict_GetItem(self->fds_dict, py_fd);
-    if (!py_fd_ndx && !allow_missed)
-    {
-        PyErr_SetString(PyExc_IOError, "non-existence fd");
-        return NULL;
-    }
 
     fd_ndx = py_fd_ndx ? (int)PyInt_AsSsize_t(py_fd_ndx): self->nfds;
     if (PyErr_Occurred())
@@ -544,15 +539,31 @@ Poll_generic_register(Poll* self, PyObject* args, int allow_missed)
 }
 
 static PyObject *
-Poll_register(Poll* self, PyObject* args)
-{
-    return Poll_generic_register(self, args, 1);
-}
-
-static PyObject *
 Poll_modify(Poll* self, PyObject* args)
 {
-    return Poll_generic_register(self, args, 0);
+    int fd, fd_ndx;
+    short events;
+    PyObject* py_fd;
+    PyObject* py_fd_ndx;
+
+    if (!PyArg_ParseTuple(args, "iH:modify", &fd, &events))
+        return NULL;
+
+    py_fd = PyTuple_GET_ITEM(args, 0);
+    if (!py_fd)
+        return NULL;
+
+    py_fd_ndx = PyDict_GetItem(self->fds_dict, py_fd);
+    if (!py_fd_ndx)
+        return PyErr_Format(PyExc_IOError, "unknown fd %d", fd);
+
+    fd_ndx = (int)PyInt_AsSsize_t(py_fd_ndx);
+    if (PyErr_Occurred())
+        return NULL;
+
+    self->fds[fd_ndx].events  = events;
+
+    Py_RETURN_NONE;
 }
 
 static PyObject *
